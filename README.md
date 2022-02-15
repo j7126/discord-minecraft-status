@@ -11,7 +11,7 @@ Currently all of the configuration is set up in environment variables:
 - `RATE`: The rate in milliseconds that the bot will update the status of the server.
 - `SERVERS`: Contains a JSON stringified object to configure the bots and minecraft servers. Example configuration:
 
-```json
+```jsonc
 [
   {
     "token": "<discord bot token here>",
