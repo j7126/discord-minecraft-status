@@ -45,20 +45,6 @@ class Client {
       })
       : null;
 
-    Promise.all(
-      this.guilds.map((id) => {
-        return (async () => {
-          this.client.guilds.cache
-            .get(id)
-            .members.cache.get(this.client.user.id)
-            .setNickname(
-              this.host +
-              (this.port != 25565 ? ":" + this.port : "")
-            );
-        })();
-      })
-    );
-
     return this;
   }
 
@@ -121,6 +107,20 @@ class Client {
         );
       }
     }
+
+    Promise.all(
+      this.guilds.map((id) => {
+        return (async () => {
+          this.client.guilds.cache
+            .get(id)
+            .members.cache.get(this.client.user.id)
+            .setNickname(
+              this.host +
+              (this.port != 25565 ? ":" + this.port : "")
+            );
+        })();
+      })
+    );
   }
 }
 
