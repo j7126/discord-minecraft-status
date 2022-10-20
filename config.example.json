@@ -1,0 +1,10 @@
+{
+    "SERVERS": [
+        {
+            "token": "<bot token>",
+            "host": "<server ip>",
+            "port": 25565
+        }
+    ],
+    "RATE": 5000
+}

@@ -1,11 +1,10 @@
-const util = require("minecraft-server-util");
+const util = require('minecraft-server-util');
+const Discord = require('discord.js');
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 
-const Discord = require("discord.js");
-const fs = require("fs");
-const path = require("path");
-const axios = require("axios");
-
-require("dotenv").config();
+const config = require('./config.json');
 
 /** The image to be used when the server is offline */
 const offline =
@@ -25,12 +24,12 @@ class Client {
    * @param {string} config.host The hostname of the Minecraft server to query
    * @param {number} [config.port=25565] The port of the Minecraft server to query
    */
-  constructor({ host, port = 25565, token }) {
+  constructor({ token, host, port = 25565 }) {
     this.host = host;
     this.port = port;
     this.token = token;
     this.client = new Discord.Client({
-      intents: [Discord.Intents.FLAGS.GUILDS],
+      intents: [Discord.GatewayIntentBits.Guilds],
     });
     this.avatarTimeout = false;
   }
@@ -42,9 +41,23 @@ class Client {
 
     this.currentAvatar = this.client.user.avatarURL()
       ? await axios.get(this.client.user.avatarURL(), {
-          responseType: "arraybuffer",
-        })
+        responseType: "arraybuffer",
+      })
       : null;
+
+    Promise.all(
+      this.guilds.map((id) => {
+        return (async () => {
+          this.client.guilds.cache
+            .get(id)
+            .members.cache.get(this.client.user.id)
+            .setNickname(
+              this.host +
+              (this.port != 25565 ? ":" + this.port : "")
+            );
+        })();
+      })
+    );
 
     return this;
   }
@@ -56,13 +69,11 @@ class Client {
       .then(
         ({
           players: { online: onlinePlayers },
-          motd: { clean: description },
           favicon,
         }) => {
           this.setBotStatus({
             status: onlinePlayers ? "online" : "idle",
-            nickname: "Online: " + onlinePlayers.toLocaleString(),
-            customtext: description,
+            customtext: "Online: " + onlinePlayers.toLocaleString(),
             avatar: favicon ?? defaultImg,
           });
         }
@@ -71,34 +82,9 @@ class Client {
         if (e.code == "ECONNREFUSED") {
           this.setBotStatus({
             status: "dnd",
-            nickname: "Offline",
-            customtext: "",
+            customtext: "Offline",
             avatar: offline,
           });
-        } else {
-          util
-            .statusLegacy(this.host, this.port)
-            .then(
-              ({
-                players: { online: onlinePlayers },
-                motd: { clean: description },
-              }) => {
-                this.setBotStatus({
-                  status: onlinePlayers ? "online" : "idle",
-                  nickname: "Online: " + onlinePlayers.toLocaleString(),
-                  customtext: description,
-                  avatar: defaultImg,
-                });
-              }
-            )
-            .catch(() => {
-              this.setBotStatus({
-                status: "dnd",
-                nickname: "Offline",
-                customtext: "",
-                avatar: offline,
-              });
-            });
         }
       });
   }
@@ -107,32 +93,18 @@ class Client {
    *
    * @param {Object} config Configuration for setting the bot's status
    * @param {string} config.status The status of the bot (online, idle, dnd, or invisible)
-   * @param {string} config.nickname The text in the bot's nickname to set inside parentheses after the hostname of the bot
    * @param {string} config.customtext The text to display for the bot's "Playing" presence
    * @param {string} config.avatar The base64-encoded image to set for the bot's avatar
    *
    */
-  async setBotStatus({ status, nickname, customtext, avatar }) {
-    this.client.user.setStatus(status);
-
-    Promise.all(
-      this.guilds.map((id) => {
-        return (async () => {
-          await this.client.guilds.cache
-            .get(id)
-            .members.cache.get(this.client.user.id)
-            .setNickname(
-              this.host +
-                (this.port != 25565 ? ":" + this.port : "") +
-                " (" +
-                nickname +
-                ")"
-            );
-        })();
-      })
-    );
-
-    await this.client.user.setActivity(customtext, { type: "PLAYING" });
+  async setBotStatus({ status, customtext, avatar }) {
+    this.client.user.setPresence({
+      status: status,
+      activities: [{
+        name: customtext,
+        type: 0
+      }]
+    });
 
     if (this.currentAvatar != avatar && !this.avatarTimeout) {
       try {
@@ -153,7 +125,7 @@ class Client {
 }
 
 Promise.all(
-  JSON.parse(process.env.SERVERS).map(async (c) => {
+  config.SERVERS.map(async (c) => {
     c = await new Client(c).init();
     await c.update();
     return c;
@@ -163,5 +135,5 @@ Promise.all(
     bots.forEach((bot) => {
       bot.update();
     });
-  }, process.env.RATE);
+  }, config.RATE);
 });
