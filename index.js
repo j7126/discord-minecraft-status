@@ -160,7 +160,7 @@ class Client {
             if (channel.isTextBased()) {
               channel.messages.fetch({ limit: 1 }).then(msgs => {
                 const msg = msgs.at(0);
-                if (msg.author.id == self.client.user.id) {
+                if (msg != null && msg.author.id == self.client.user.id) {
                   msg.edit(statusMessage);
                 } else {
                   channel.messages.fetch({ limit: 10 }).then(msgs => msgs.each(msg => {
