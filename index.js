@@ -54,13 +54,21 @@ class Client {
       .status(this.host, this.port)
       .then(
         ({
-          players: { online: onlinePlayers },
+          players: {
+            online: onlinePlayers,
+            sample: players
+          },
           favicon,
+          motd: {
+            clean: name
+          }
         }) => {
           this.setBotStatus({
             status: onlinePlayers ? "online" : "idle",
             customtext: "Online: " + onlinePlayers.toLocaleString(),
             avatar: favicon ?? defaultImg,
+            players: players,
+            name: name
           });
         }
       )
@@ -70,6 +78,8 @@ class Client {
             status: "dnd",
             customtext: "Offline",
             avatar: offline,
+            players: [],
+            name: 'Server Offline'
           });
         }
       });
@@ -83,7 +93,10 @@ class Client {
    * @param {string} config.avatar The base64-encoded image to set for the bot's avatar
    *
    */
-  async setBotStatus({ status, customtext, avatar }) {
+  async setBotStatus({ status, customtext, avatar, players, name }) {
+    const self = this;
+
+    // update presence
     this.client.user.setPresence({
       status: status,
       activities: [{
@@ -92,6 +105,7 @@ class Client {
       }]
     });
 
+    // update avatar
     if (this.currentAvatar != avatar && !this.avatarTimeout) {
       try {
         await this.client.user.setAvatar(avatar);
@@ -108,6 +122,62 @@ class Client {
       }
     }
 
+    // build status message
+    const statusEmbed = new Discord.EmbedBuilder()
+      .setColor(0xab353)
+      .setAuthor({ name: name });
+    let numOnline = 0;
+    if (players != null && players.length != 0) {
+      numOnline = players.length;
+    }
+    statusEmbed.setTitle(`Players Online:  ${numOnline}`);
+    statusEmbed
+      .setTimestamp()
+      .setFooter({
+        text: this.host + (this.port != 25565 ? ":" + this.port : "")
+      });
+    let statusEmbeds = [statusEmbed]
+    if (numOnline > 0) {
+      for (let i = 0; i < players.length; i++) {
+        const player = players[i];
+        const embed = new Discord.EmbedBuilder()
+        .setColor(0x7a5746)
+        .setAuthor({ name: player.name, iconURL: `https://crafthead.net/avatar/${player.id}` });
+        statusEmbeds.push(embed);
+      }
+    }
+    const statusMessage = {
+      content: '',
+      embeds: statusEmbeds,
+    };
+
+    // update status message
+    if (config.STATUS_CHANNELS != null) {
+      for (let i = 0; i < config.STATUS_CHANNELS.length; i++) {
+        const id = config.STATUS_CHANNELS[i];
+        this.client.channels.fetch(id)
+          .then(channel => {
+            if (channel.isTextBased()) {
+              channel.messages.fetch({ limit: 1 }).then(msgs => {
+                const msg = msgs.at(0);
+                if (msg.author.id == self.client.user.id) {
+                  msg.edit(statusMessage);
+                } else {
+                  channel.messages.fetch({ limit: 10 }).then(msgs => msgs.each(msg => {
+                    if (msg.author.id == self.client.user.id) {
+                      msg.delete();
+                    }
+                  }));
+                  channel.send(statusMessage);
+                }
+              });
+            }
+          })
+          .catch(console.error);
+      }
+    }
+
+    // update nickname
     Promise.all(
       this.guilds.map((id) => {
         return (async () => {
