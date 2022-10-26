@@ -10,6 +10,7 @@ Configuration is set up in config.json
 
 - `RATE`: The rate in milliseconds that the bot will update the status of the server.
 - `SERVERS`: Configure the bots and minecraft servers.
+- `STATUS_CHANNELS`: the channel ids where the bot will put it's status message
 
 Rename `config.example.json` to `config.json`
 
@@ -26,3 +27,5 @@ If the bot's discord status is:
 The bot's name will be the ip and port of the server, and it's status will be the number of online players.
 
 The bot's icon will be set to the server's icon if it responds with one, otherwise it will be set to `img/default.png`. If the server is offline, the image will be set to `img/offline.png`.
+
+The bot will send a status message in the configured channels showing the status of the server as well as the name and avatar of some players who are online.  
