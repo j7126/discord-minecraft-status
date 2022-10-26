@@ -130,7 +130,6 @@ class Client {
           .setAuthor({ name: name });
         statusEmbed.setTitle(`Players Online:  ${numOnline}`);
         statusEmbed
-          .setTimestamp()
           .setFooter({
             text: this.host + (this.port != 25565 ? ":" + this.port : "")
           });
